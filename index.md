@@ -1,61 +1,110 @@
-🚀 MLOps Open Source: Guía Práctica de Implementación
+# 🧪 MLOps Open Source: Hands-on Lab
+> **Seminario de Grado II - Especialización en Ciencia de Datos** > Este portal es una guía interactiva para implementar un stack de MLOps reproducible.
 
-Este portal documenta el stack técnico de MLOps para el Seminario de Grado II.
+---
 
-📦 El Stack Mínimo
+## 📌 Tabla de Contenidos
+1. [🚀 Introducción al Stack](#introducción-al-stack)
+2. [📅 Semana 1: Reproducible Baseline (MLflow)](#semana-1)
+3. [🛠️ Semana 2: Pipelines y Calidad](#semana-2)
+4. [⚡ Semana 3: Serving con FastAPI](#semana-3)
+5. [🐳 Semana 4: Docker y Despliegue](#semana-4)
+6. [🏁 Entregable Final](#entregable-final)
 
-Git: Control de versiones para código y modelos.
+---
 
-MLflow: Plataforma para el ciclo de vida de ML (Tracking, Registry).
+<a name="introducción-al-stack"></a>
+## 🚀 1. Introducción al Stack
+Para este laboratorio utilizaremos herramientas *Open Source* que permiten la transición del modelo de Jupyter Notebook a un entorno productivo:
 
-FastAPI: Framework web moderno y rápido para servir predicciones.
+| Herramienta | Función |
+| :--- | :--- |
+| **Git** | Control de versiones de código. |
+| **MLflow** | Tracking de experimentos y registro de modelos. |
+| **FastAPI** | Creación de interfaces de programación (API). |
+| **Docker** | Empaquetamiento y portabilidad. |
 
-Docker: Contenedores para asegurar que "funcione en mi máquina y en el servidor".
 
-🗓️ Plan de 4 Semanas
 
-Semana 1: Baseline Reproducible
+---
 
-Herramienta clave: MLflow
+<a name="semana-1"></a>
+## 📅 2. Semana 1: Reproducible Baseline
+El objetivo es registrar nuestro primer entrenamiento para que no se pierda en el historial.
 
-Concepto: Todo experimento debe ser rastreable. Si no se puede repetir, no es ciencia.
+### 💻 Ejemplo de Código (train.py)
+import mlflow
+import mlflow.sklearn
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import train_test_split
+from sklearn.datasets import load_iris
 
-Paso a paso: 1. Configurar un entorno virtual: python -m venv venv.
-2. Instalar dependencias: pip install mlflow scikit-learn.
-3. Usar mlflow.log_params() y mlflow.log_metrics().
+# Iniciar experimento en MLflow
+mlflow.set_experiment("Baseline_Model")
 
-Semana 2: Pipeline y Calidad
+with mlflow.start_run():
+    # Configuración de hiperparámetros
+    n_estimators = 100
+    mlflow.log_param("n_estimators", n_estimators)
+    
+    # Entrenamiento (Ejemplo simple)
+    data = load_iris()
+    X_train, X_test, y_train, y_test = train_test_split(data.data, data.target)
+    model = RandomForestClassifier(n_estimators=n_estimators)
+    model.fit(X_train, y_train)
+    
+    # Registro de métrica y modelo
+    accuracy = model.score(X_test, y_test)
+    mlflow.log_metric("accuracy", accuracy)
+    mlflow.sklearn.log_model(model, "iris_model")
+    
+    print(f"Modelo registrado con accuracy: {accuracy}")
+    
+---
+<a name="semana-3"></a>
 
-Herramienta clave: Automation (Makefiles)
+⚡ 4. Semana 3: Serving con FastAPI
+Ahora convertimos ese archivo .pkl guardado en MLflow en un servicio que responde preguntas.
 
-Concepto: Automatizar tareas repetitivas y validar la integridad de los datos de entrada.
+🛠️ Implementación de la API
+from fastapi import FastAPI
+from pydantic import BaseModel
+import mlflow.sklearn
 
-Paso a paso:
+app = FastAPI(title="MLOps API")
 
-Crear un archivo Makefile para estandarizar comandos.
+# Clase para validar datos de entrada
+class IrisInput(BaseModel):
+    sepal_length: float
+    sepal_width: float
+    petal_length: float
+    petal_width: float
 
-Implementar validaciones de tipos (ej. verificar que la edad no sea negativa).
+# Cargar el modelo (Asegúrate de tener el RUN_ID correcto)
+logged_model = 'runs:/TU_RUN_ID_AQUI/iris_model'
+model = mlflow.sklearn.load_model(logged_model)
 
-Semana 3: Serving con FastAPI
+@app.get("/health")
+def health():
+    return {"status": "online"}
 
-Herramienta clave: FastAPI + Pydantic
+@app.post("/predict")
+def predict(data: IrisInput):
+    prediction = model.predict([[data.sepal_length, data.sepal_width, data.petal_length, data.petal_width]])
+    return {"prediction": int(prediction[0])}
 
-Concepto: Convertir un modelo (.pkl o .onnx) en un servicio web accesible vía HTTP.
+---
+<a name="entregable-final"></a>
+🏁 6. Entregable Final
+Para aprobar el componente técnico de la materia, el repositorio debe contener:
 
-Paso a paso:
+[ ] train.py: Script con logging de MLflow.
 
-Definir esquemas de datos con Pydantic.
+[ ] app.py: API funcional.
 
-Crear el endpoint /predict que cargue el modelo desde MLflow.
+[ ] Dockerfile: Imagen del servicio.
 
-Semana 4: Dockerización
+[ ] README.md: Instrucciones claras.
 
-Herramienta clave: Docker & Docker Compose
-
-Concepto: Empaquetar la aplicación con todas sus librerías para un despliegue sin fricciones.
-
-Paso a paso:
-
-Escribir el Dockerfile basado en python:3.9-slim.
-
-Configurar docker-compose.yml para orquestar la API y la UI de MLflow.
+# Para probar tu API localmente:
+uvicorn app:app --reload
